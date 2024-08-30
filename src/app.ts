@@ -1,12 +1,12 @@
 const express = require("express");
 import bodyParser from "body-parser";
+import {resultDocument} from "./controllers/convertController";
 
-import router from "./src/routes/routes";
 const app = express();
 
 app.use(bodyParser.json());
 
-app.use("/convert", router);
+app.use("/convert", resultDocument);
 
 const PORT = process.env.PORT || 3000;
 
