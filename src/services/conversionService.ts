@@ -1,12 +1,10 @@
-const express = require("express");
-const app = express();
 const xml2js = require("xml2js");
-import { XMLValidator } from 'fast-xml-parser'; 
+import {XMLValidator} from "fast-xml-parser";
 
 type ConvertOptions = {
-  document: string | object; 
-  outputFormat: "string" | "json" | "xml"; 
-  separators?: {line: string; element: string}; 
+  document: string | object;
+  outputFormat: "string" | "json" | "xml";
+  separator?: {line: string; element: string};
 };
 
 type ConvertedDocument = string | object;
@@ -22,29 +20,29 @@ type ConvertedDocument = string | object;
 export async function convertDocument({
   document,
   outputFormat,
-  separators,
+  separator = {line: "~", element: "*"},
 }: ConvertOptions): Promise<ConvertedDocument> {
   switch (outputFormat.toLowerCase()) {
-      case "xml":
-          if (typeof document === "object") {
-            return convertJSONToXML(document)
-          } else {
-              return convertJSONToXML(convertStringToJSON(document,separators))
-          }    
-      case "json":
-          if (typeof document === "string") {
-              if (XMLValidator.validate(document) === true) {
-                return convertXMLToJSON(document)
-              } else {
-                return convertStringToJSON(document, separators)
-              }
-          }
-      case "string":
-          if (typeof document === "object") {
-              return convertJSONToString(document, separators)
-          } else {
-              return convertJSONToString(convertXMLToJSON(document), separators)
-          }      
+    case "xml":
+      if (typeof document === "object") {
+        return convertJSONToXML(document);
+      } else {
+        return convertJSONToXML(convertStringToJSON(document, separator));
+      }
+    case "json":
+      if (typeof document === "string") {
+        if (XMLValidator.validate(document) === true) {
+          return convertXMLToJSON(document);
+        } else {
+          return convertStringToJSON(document, separator);
+        }
+      }
+    case "string":
+      if (typeof document === "object") {
+        return convertJSONToString(document, separator);
+      } else {
+        return convertJSONToString(convertXMLToJSON(document), separator);
+      }
     default:
       console.error("Incorrect output format specified");
       throw new Error(
@@ -60,11 +58,14 @@ export async function convertDocument({
  * @returns {Object} - The converted JSON-like object.
  */
 
-export async function convertStringToJSON(document: string, separators: ) {
-  const arrayOfSegments = document.split("~");
+export async function convertStringToJSON(
+  document: string,
+  separator: {line: string; element: string}
+) {
+  const arrayOfSegments = document.split(separator.line);
 
   const newArr = arrayOfSegments.reduce((acc, segment) => {
-    const arrayElements = segment.split("*");
+    const arrayElements = segment.split(separator.element);
 
     const arrayValues = arrayElements.slice(1);
 
@@ -132,7 +133,7 @@ export async function convertXMLToJSON(document: string): Promise<any> {
  */
 export async function convertJSONToString(
   document: any,
-  seperator: {line: string; element: string}
+  separator: {line: string; element: string}
 ): Promise<string> {
   const linedSegments = Object.keys(document).reduce((acc, segmentKey) => {
     const valuesArr = document[segmentKey];
@@ -140,10 +141,10 @@ export async function convertJSONToString(
     const linedObject = valuesArr.map((valuesObj) => {
       const linedElements = Object.keys(valuesObj)
         .map((objKey) => valuesObj[objKey])
-        .join(seperator.element);
-      return `${segmentKey}${seperator.element}${linedElements}`;
+        .join(separator.element);
+      return `${segmentKey}${separator.element}${linedElements}`;
     });
     return acc.concat(linedObject);
   }, [] as string[]);
-  return linedSegments.join(seperator.line);
+  return linedSegments.join(separator.line);
 }
