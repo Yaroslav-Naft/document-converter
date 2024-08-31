@@ -1,4 +1,4 @@
-const xml2js = require("xml2js");
+import xml2js from "xml2js";
 import {XMLValidator} from "fast-xml-parser";
 
 type ConvertOptions = {
@@ -7,41 +7,59 @@ type ConvertOptions = {
   separator?: {line: string; element: string};
 };
 
-type ConvertedDocument = string | object;
+interface DocumentWithRoot {
+  root: Record<string, Array<Record<string, string>>>;
+}
+
+type ConvertedDocument = string | DocumentWithRoot;
 
 /**
- * Converts a document from one format to another.
+ * Converts a document from one format to another
  *
- * @param {ConvertOptions} options - An object containing the document, target format, and optional separators.
- * @returns {ConvertedDocument} - The converted document in the specified target format.
- * @throws {Error} If an unsupported target format is specified.
+ * @param {ConvertOptions} options - The document, the output format, and optional separators (for string case)
+ * @returns {ConvertedDocument} - The converted document in the specified output format
+ * @throws {Error}
  */
 
 export async function convertDocument({
   document,
   outputFormat,
-  separator = {line: "~", element: "*"},
+  separator = {line: "~", element: "*"}, //default seperators to be used for Json/XML-> string covnersions
 }: ConvertOptions): Promise<ConvertedDocument> {
+  if (!outputFormat) {
+    throw new Error("Output format is required.");
+  }
+
   switch (outputFormat.toLowerCase()) {
     case "xml":
       if (typeof document === "object") {
-        return convertJSONToXML(document);
+        return await convertJSONToXML(document as DocumentWithRoot);
       } else {
-        return convertJSONToXML(convertStringToJSON(document, separator));
+        return await convertJSONToXML(
+          await convertStringToJSON(document, separator)
+        );
       }
     case "json":
       if (typeof document === "string") {
         if (XMLValidator.validate(document) === true) {
-          return convertXMLToJSON(document);
+          return await convertXMLToJSON(document);
         } else {
-          return convertStringToJSON(document, separator);
+          return await convertStringToJSON(document, separator);
         }
+      } else {
+        throw new Error("Logger: Invalid input, Expected String input forma");
       }
     case "string":
       if (typeof document === "object") {
-        return convertJSONToString(document, separator);
+        return await convertJSONToString(
+          document as DocumentWithRoot,
+          separator
+        );
       } else {
-        return convertJSONToString(convertXMLToJSON(document), separator);
+        return await convertJSONToString(
+          await convertXMLToJSON(document),
+          separator
+        );
       }
     default:
       console.error("Incorrect output format specified");
@@ -61,8 +79,10 @@ export async function convertDocument({
 export async function convertStringToJSON(
   document: string,
   separator: {line: string; element: string}
-) {
-  const arrayOfSegments = document.split(separator.line);
+): Promise<DocumentWithRoot> {
+  const arrayOfSegments = document
+    .split(separator.line)
+    .filter((segment) => segment.trim() !== "");
 
   const newArr = arrayOfSegments.reduce((acc, segment) => {
     const arrayElements = segment.split(separator.element);
@@ -87,25 +107,27 @@ export async function convertStringToJSON(
     acc[arrayKey].push(mergedObjects);
 
     return acc;
-  }, {} as Record<string, any>);
-  return newArr;
+  }, {} as Record<string, Array<Record<string, string>>>);
+
+  return {root: newArr};
 }
 
 /**
  * Converts a JSON object to an XML string.
  *
- * @param {Object} json - ≠The JSON object to convert.
+ * @param {Object} json -The JSON object to convert.
  * @returns {string} - The converted XML string.
  */
 
-export async function convertJSONToXML(document: Record<string, any>) {
+export async function convertJSONToXML(
+  document: DocumentWithRoot
+): Promise<string> {
   try {
     const builder = new xml2js.Builder();
     const xml = builder.buildObject(document);
     return xml;
   } catch (error) {
-    console.error(`Parsing failed with error: ${error}`);
-    throw error;
+    throw new Error(`Parsing failed with error: ${error}`);
   }
 }
 /**
@@ -114,14 +136,15 @@ export async function convertJSONToXML(document: Record<string, any>) {
  * @param xml - The xml string to convert.
  * @returns {object} json - The converted JSON object.
  */
-export async function convertXMLToJSON(document: string): Promise<any> {
+export async function convertXMLToJSON(
+  document: string
+): Promise<DocumentWithRoot> {
   try {
     const parser = new xml2js.Parser();
     const result = await parser.parseStringPromise(document);
     return result;
   } catch (error) {
-    console.error(`Parsing failed with error: ${error}`);
-    throw error;
+    throw new Error(`Parsing failed with error: ${error}`);
   }
 }
 
@@ -132,19 +155,26 @@ export async function convertXMLToJSON(document: string): Promise<any> {
  * @returns {string} string - The converted string
  */
 export async function convertJSONToString(
-  document: any,
+  document: DocumentWithRoot,
   separator: {line: string; element: string}
 ): Promise<string> {
-  const linedSegments = Object.keys(document).reduce((acc, segmentKey) => {
-    const valuesArr = document[segmentKey];
+  const root = document.root; //extract document from root object
+  if (!root) {
+    throw new Error("Logger: Missing root property in document");
+  }
+  const linedSegments = Object.keys(root).reduce(
+    (acc: string[], segmentKey: string) => {
+      const valuesArr = root[segmentKey];
 
-    const linedObject = valuesArr.map((valuesObj) => {
-      const linedElements = Object.keys(valuesObj)
-        .map((objKey) => valuesObj[objKey])
-        .join(separator.element);
-      return `${segmentKey}${separator.element}${linedElements}`;
-    });
-    return acc.concat(linedObject);
-  }, [] as string[]);
+      const linedObject = valuesArr.map((valuesObj) => {
+        const linedElements = Object.keys(valuesObj)
+          .map((objKey) => valuesObj[objKey])
+          .join(separator.element);
+        return `${segmentKey}${separator.element}${linedElements}`;
+      });
+      return acc.concat(linedObject);
+    },
+    [] as string[]
+  );
   return linedSegments.join(separator.line);
 }
