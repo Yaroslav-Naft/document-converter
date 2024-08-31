@@ -1,11 +1,12 @@
 const express = require("express");
 const app = express();
 const xml2js = require("xml2js");
+import { XMLValidator } from 'fast-xml-parser'; 
 
 type ConvertOptions = {
-  document: string | object; // The input document, which can be a string or a JSON object
-  outputFormat: "string" | "json" | "xml"; // The target format for conversion
-  separators?: {line: string; element: string}; // Optional separators for string format conversion
+  document: string | object; 
+  outputFormat: "string" | "json" | "xml"; 
+  separators?: {line: string; element: string}; 
 };
 
 type ConvertedDocument = string | object;
@@ -23,16 +24,27 @@ export async function convertDocument({
   outputFormat,
   separators,
 }: ConvertOptions): Promise<ConvertedDocument> {
-  switch (outputFormat) {
-    case "xml":
-    case "json":
-    case "string":
-      if (typeof document === "string") {
-        convertStringToJSON;
-      }
-
-      return convertStringToJSON();
-
+  switch (outputFormat.toLowerCase()) {
+      case "xml":
+          if (typeof document === "object") {
+            return convertJSONToXML(document)
+          } else {
+              return convertJSONToXML(convertStringToJSON(document,separators))
+          }    
+      case "json":
+          if (typeof document === "string") {
+              if (XMLValidator.validate(document) === true) {
+                return convertXMLToJSON(document)
+              } else {
+                return convertStringToJSON(document, separators)
+              }
+          }
+      case "string":
+          if (typeof document === "object") {
+              return convertJSONToString(document, separators)
+          } else {
+              return convertJSONToString(convertXMLToJSON(document), separators)
+          }      
     default:
       console.error("Incorrect output format specified");
       throw new Error(
@@ -48,7 +60,7 @@ export async function convertDocument({
  * @returns {Object} - The converted JSON-like object.
  */
 
-export async function convertStringToJSON(document: String = testString) {
+export async function convertStringToJSON(document: string, separators: ) {
   const arrayOfSegments = document.split("~");
 
   const newArr = arrayOfSegments.reduce((acc, segment) => {
@@ -67,7 +79,7 @@ export async function convertStringToJSON(document: String = testString) {
     }
 
     const mergedObjects = convertedArray.reduce(
-      (acc, current) => ({...acc, ...current}),
+      (accObj, currentObj) => ({...accObj, ...currentObj}),
       {}
     );
 
@@ -86,12 +98,14 @@ export async function convertStringToJSON(document: String = testString) {
  */
 
 export async function convertJSONToXML(document: Record<string, any>) {
-  // Create a new builder instance with default options
-  const builder = new xml2js.Builder();
-
-  const xml = builder.buildObject(document);
-
-  return xml;
+  try {
+    const builder = new xml2js.Builder();
+    const xml = builder.buildObject(document);
+    return xml;
+  } catch (error) {
+    console.error(`Parsing failed with error: ${error}`);
+    throw error;
+  }
 }
 /**
  * Converts an XML string to a JSON object.
@@ -99,10 +113,9 @@ export async function convertJSONToXML(document: Record<string, any>) {
  * @param xml - The xml string to convert.
  * @returns {object} json - The converted JSON object.
  */
-export async function convertXMLtoJSON(document: string): Promise<any> {
+export async function convertXMLToJSON(document: string): Promise<any> {
   try {
     const parser = new xml2js.Parser();
-
     const result = await parser.parseStringPromise(document);
     return result;
   } catch (error) {
@@ -111,29 +124,26 @@ export async function convertXMLtoJSON(document: string): Promise<any> {
   }
 }
 
-//Test Data
-const testJSON = {
-  root: {
-    ProductID1: ["4", "8", "15", "16", "23"],
-    ProductID2: ["a", "b", "c", "d", "e"],
-    AddressID: ["42", "108", "3", "14"],
-    ContactID: ["59", "26"],
-  },
-};
+/**
+ * Converts a JSON object to a string
+ *
+ * @param {object} json - The JSON object to convert.
+ * @returns {string} string - The converted string
+ */
+export async function convertJSONToString(
+  document: any,
+  seperator: {line: string; element: string}
+): Promise<string> {
+  const linedSegments = Object.keys(document).reduce((acc, segmentKey) => {
+    const valuesArr = document[segmentKey];
 
-const xmlData = `<root>
-      <ProductID>4</ProductID>
-      <ProductID>8</ProductID>
-      <ProductID>15</ProductID>
-      <ProductID>16</ProductID>
-      <ProductID>23</ProductID>
-      <AddressID>42</AddressID>
-      <AddressID>108</AddressID>
-      <AddressID>3</AddressID>
-      <AddressID>14</AddressID>
-      <ContactID>59</ContactID>
-      <ContactID>26</ContactID>
-    </root>`;
-
-const testString =
-  "ProductID*4*8*15*16*23~ProductID*a*b*c*d*e~AddressID*42*108*3*14~ContactID*59*26~";
+    const linedObject = valuesArr.map((valuesObj) => {
+      const linedElements = Object.keys(valuesObj)
+        .map((objKey) => valuesObj[objKey])
+        .join(seperator.element);
+      return `${segmentKey}${seperator.element}${linedElements}`;
+    });
+    return acc.concat(linedObject);
+  }, [] as string[]);
+  return linedSegments.join(seperator.line);
+}
