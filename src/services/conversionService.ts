@@ -7,7 +7,7 @@ type ConvertOptions = {
   separator?: {line: string; element: string};
 };
 
-interface DocumentWithRoot {
+export interface DocumentWithRoot {
   root: Record<string, Array<Record<string, string>>>;
 }
 
@@ -56,10 +56,8 @@ export async function convertDocument({
           separator
         );
       } else {
-        return await convertJSONToString(
-          await convertXMLToJSON(document),
-          separator
-        );
+        const jsonConverted = await convertXMLToJSON(document);
+        return await convertJSONToString(jsonConverted, separator);
       }
     default:
       console.error("Incorrect output format specified");
@@ -167,6 +165,10 @@ export async function convertJSONToString(
       const valuesArr = root[segmentKey];
 
       const linedObject = valuesArr.map((valuesObj) => {
+        //Handle edge case with no elements
+        if (Object.keys(valuesObj).length === 0) {
+          return `${segmentKey}`;
+        }
         const linedElements = Object.keys(valuesObj)
           .map((objKey) => valuesObj[objKey])
           .join(separator.element);
@@ -176,5 +178,7 @@ export async function convertJSONToString(
     },
     [] as string[]
   );
-  return linedSegments.join(separator.line);
+  return linedSegments
+    .filter((segment) => segment.trim() !== "")
+    .join(separator.line);
 }
