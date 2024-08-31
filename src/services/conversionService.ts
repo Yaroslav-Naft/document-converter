@@ -121,7 +121,9 @@ export async function convertJSONToXML(
   document: DocumentWithRoot
 ): Promise<string> {
   try {
-    const builder = new xml2js.Builder();
+    const builder = new xml2js.Builder({
+      renderOpts: {pretty: false},
+    });
     const xml = builder.buildObject(document);
     return xml;
   } catch (error) {
