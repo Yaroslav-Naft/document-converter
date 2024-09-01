@@ -23,7 +23,7 @@ For Install:
 
 1. Install modules and dependencies `npm i`
 
-2. Build and compile the code
+2. Build and compile the code `npm build`
 
 To start the server and test the api:
 
