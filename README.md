@@ -23,11 +23,11 @@ For Install:
 
 1. Install modules and dependencies `npm i`
 
-2. Build and compile the code `npm build`
+2. To Build and compile the code use `npm build`
 
 To start the server and test the api:
 
-1. npm start
+1. `npm start`
 
 2. To send a POST request either use Postman or send the following cURL directly to the running api
 
