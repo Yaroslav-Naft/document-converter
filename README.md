@@ -21,11 +21,9 @@ Technologies: The project uses Express.js as the server framework in Node.js for
 
 For Install:
 
-1. Clone the repo
+1. Install modules and dependencies `npm i`
 
-2. Install modules and dependencies
-
-3. Build and compile the code
+2. Build and compile the code
 
 To start the server and test the api:
 
@@ -58,12 +56,12 @@ Description: Takes a document in any fo the 3 formats and converts them to the n
 
 Request Params:
 document (string | object): The input document to convert.
-targetFormat (string): The desired output format (string, json, xml).
-separators (object, optional): Delimiters for string conversions.
+outputFormat ("string" | "json" | "xml"): The desired output format (string, json, xml).
+separators ({line: string; element: string}): Seperators (lines & segments) used for string conversions.
 
 ## **Test**
 
-The projects so far has a number of unit test which can be found with the `npm run test` command.
+The projects so far has a number of unit test which can be ran with the `npm test` command.
 
 In future implementation, integration and end-to-end test should be added for better reliability and error-prevention.
 

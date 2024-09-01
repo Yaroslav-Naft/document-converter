@@ -16,8 +16,8 @@ type ConvertedDocument = string | DocumentWithRoot;
 /**
  * Converts a document from one format to another
  *
- * @param {ConvertOptions} options - The document, the output format, and optional separators (for string case)
- * @returns {ConvertedDocument} - The converted document in the specified output format
+ * @param {ConvertOptions} options - The document,output format & separators
+ * @returns {ConvertedDocument} - The Specified output format
  * @throws {Error}
  */
 
@@ -47,7 +47,7 @@ export async function convertDocument({
           return await convertStringToJSON(document, separator);
         }
       } else {
-        throw new Error("Logger: Invalid input, Expected String input forma");
+        throw new Error("Logger: Invalid input, Expected String input format");
       }
     case "string":
       if (typeof document === "object") {

@@ -15,7 +15,7 @@ export const resultDocument = async (
 
   if (!document || !outputFormat) {
     res.status(400).json({
-      message: "Validation failed: Missing Document and/or Target format",
+      message: "Validation Error: Missing Document and/or Target format",
     });
   }
   try {
